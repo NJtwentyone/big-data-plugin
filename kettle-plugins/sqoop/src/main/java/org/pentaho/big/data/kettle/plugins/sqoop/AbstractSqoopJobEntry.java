@@ -29,7 +29,6 @@ import com.google.common.collect.Maps;
 import org.apache.log4j.Appender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.pentaho.big.data.kettle.plugins.job.PropertyEntry;
 import org.pentaho.hadoop.shim.api.HadoopClientServices;
 import org.pentaho.hadoop.shim.api.ShimIdentifierInterface;
 import org.pentaho.hadoop.shim.api.cluster.NamedCluster;
@@ -315,16 +314,17 @@ public abstract class AbstractSqoopJobEntry<S extends SqoopConfig> extends Abstr
         }
       }
 
-      if ( !loadNamedCluster( getMetaStore() ) ) {
-        PropertyEntry entry = config.getCustomArguments().stream()
-                .filter( p -> p.getKey() != null && p.getKey().equals( NamedClusterNameProperty ) )
+      if ( !loadNamedCluster( getMetaStore() ) ) { // TODO if UI and Advanced are different any side effects, what about reading/writting xml
+        ArgumentWrapper argumentWrapper = config.getAdvancedArgumentsList().stream()
+                .filter( a -> a.getName() != null && a.getName().equals( SqoopConfig.NAMED_CLUSTER ) )
                 .findAny()
                 .orElse( null );
-        if ( entry != null ) {
-          loadNamedCluster( entry.getValue() );
+        if ( argumentWrapper != null ) {
+          loadNamedCluster( argumentWrapper.getValue() );
         }
       }
 
+      // FIXME what is the point of this see BACKLOG-31768, loadNamedCluster() is already called
       NamedCluster tempCluster = null;
       if ( StringUtil.isEmpty( config.getNamedCluster().getName() ) ) {
         tempCluster = namedClusterService.getNamedClusterByHost( config.getNamedCluster().getHdfsHost(), getMetaStore() );
@@ -335,6 +335,7 @@ public abstract class AbstractSqoopJobEntry<S extends SqoopConfig> extends Abstr
         }
       }
 
+      // FIXME all these variables need to be re-evaluated since calls to loadNamedCluster() - or is this an override from UI
       if ( !StringUtil.isEmpty( configuredShinIdentifier ) ) {
         config.getNamedCluster().setShimIdentifier( configuredShinIdentifier );
       }

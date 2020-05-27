@@ -48,6 +48,7 @@ import java.util.Map;
 public abstract class SqoopConfig extends BlockableJobConfig implements XulEventSource, Cloneable {
   public static final String NAMENODE_HOST = "namenodeHost";
   public static final String NAMENODE_PORT = "namenodePort";
+  public static final String NAMED_CLUSTER = "pentahoNamedCluster";
   public static final String SHIM_IDENTIFIER = "shimIdentifier";
   public static final String JOBTRACKER_HOST = "jobtrackerHost";
   public static final String JOBTRACKER_PORT = "jobtrackerPort";
@@ -281,6 +282,12 @@ public abstract class SqoopConfig extends BlockableJobConfig implements XulEvent
     items.addAll( SqoopUtils.findAllArguments( this ) );
 
     try {
+      /// DEBUG
+      items.add( new ArgumentWrapper( NAMED_CLUSTER, BaseMessages.getString( getClass(), "NamedCluster.Label" ), false,
+              "", 0,
+              this, getClass().getMethod( "getClusterName" ), getClass().getMethod( "setClusterName", String.class ) ) );
+
+      // DEBUG
       items.add( new ArgumentWrapper( NAMENODE_HOST, BaseMessages.getString( getClass(), "NamenodeHost.Label" ), false,
           "", 0,
           this, getClass().getMethod( "getNamenodeHost" ), getClass().getMethod( "setNamenodeHost", String.class ) ) );
@@ -945,7 +952,7 @@ public abstract class SqoopConfig extends BlockableJobConfig implements XulEvent
   }
 
   public void loadClusterConfig( Node entrynode ) {
-    setNamedCluster( null );
+    setNamedCluster( null ); // TODO check this out
     setNamenodeHost( XMLHandler.getTagValue( entrynode, NAMENODE_HOST ) );
     setNamenodePort( XMLHandler.getTagValue( entrynode, NAMENODE_PORT ) );
     setShimIdentifier( XMLHandler.getTagValue( entrynode, SHIM_IDENTIFIER ) );
@@ -953,7 +960,7 @@ public abstract class SqoopConfig extends BlockableJobConfig implements XulEvent
     setJobtrackerPort( XMLHandler.getTagValue( entrynode, JOBTRACKER_PORT ) );
   }
 
-  public String getClusterXML() {
+  public String getClusterXML() { // TODO does this need to be updated
     StringBuilder builder = new StringBuilder();
     for ( Map.Entry<String, String> entry : namedClusterProperties( getNamedCluster() ).entrySet() ) {
       builder.append( XMLHandler.addTagValue( entry.getKey(), entry.getValue() ) );
@@ -962,7 +969,7 @@ public abstract class SqoopConfig extends BlockableJobConfig implements XulEvent
   }
 
   public void saveClusterConfig( Repository rep, ObjectId id_job, JobEntryInterface jobEntry ) throws KettleException {
-    ObjectId objectId = jobEntry.getObjectId();
+    ObjectId objectId = jobEntry.getObjectId(); // TODO does this need to be updated
     for ( Map.Entry<String, String> entry : namedClusterProperties( getNamedCluster() ).entrySet() ) {
       rep.saveJobEntryAttribute( id_job, objectId, entry.getKey(), entry.getValue() );
     }
@@ -984,8 +991,10 @@ public abstract class SqoopConfig extends BlockableJobConfig implements XulEvent
 
   @VisibleForTesting
     boolean ncPropertiesNotNullOrEmpty( NamedCluster nc ) {
-    return !Strings.isNullOrEmpty( nc.getHdfsHost() ) || !Strings.isNullOrEmpty( nc.getHdfsPort() ) || !Strings.isNullOrEmpty( nc.getJobTrackerHost() ) || !Strings.isNullOrEmpty( nc
-        .getJobTrackerPort() );
+    return !Strings.isNullOrEmpty( nc.getHdfsHost() )
+            || !Strings.isNullOrEmpty( nc.getHdfsPort() )
+            || !Strings.isNullOrEmpty( nc.getJobTrackerHost() )
+            || !Strings.isNullOrEmpty( nc.getJobTrackerPort() );
   }
 
 }
