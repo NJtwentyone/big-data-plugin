@@ -353,7 +353,7 @@ public class SqoopConfigTest {
 
     verify( createClusterTemplate ).run();
     verify( template ).replaceMeta( namedCluster );
-    assertEquals( "named cluster", config.getClusterName() );
+    assertEquals( "named cluster", config.getClusterName() ); //FIXME
   }
 
   @Test

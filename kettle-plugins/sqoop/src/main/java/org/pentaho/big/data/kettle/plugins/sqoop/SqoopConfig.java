@@ -282,12 +282,12 @@ public abstract class SqoopConfig extends BlockableJobConfig implements XulEvent
     items.addAll( SqoopUtils.findAllArguments( this ) );
 
     try {
-      /// DEBUG
-      items.add( new ArgumentWrapper( NAMED_CLUSTER, BaseMessages.getString( getClass(), "NamedCluster.Label" ), false,
-              "", 0,
-              this, getClass().getMethod( "getClusterName" ), getClass().getMethod( "setClusterName", String.class ) ) );
-
-      // DEBUG
+//      /// DEBUG
+//      items.add( new ArgumentWrapper( NAMED_CLUSTER, BaseMessages.getString( getClass(), "NamedCluster.Label" ), false,
+//              "", 0,
+//              this, getClass().getMethod( "getClusterName" ), getClass().getMethod( "setClusterName", String.class ) ) );
+//
+//      // DEBUG
       items.add( new ArgumentWrapper( NAMENODE_HOST, BaseMessages.getString( getClass(), "NamenodeHost.Label" ), false,
           "", 0,
           this, getClass().getMethod( "getNamenodeHost" ), getClass().getMethod( "setNamenodeHost", String.class ) ) );
@@ -329,7 +329,6 @@ public abstract class SqoopConfig extends BlockableJobConfig implements XulEvent
   public void setNamedCluster( NamedCluster namedCluster ) {
     this.namedCluster = createClusterTemplate();
     if ( namedCluster != null ) {
-      setClusterName( namedCluster.getName() );
       this.namedCluster.replaceMeta( namedCluster );
     }
   }
@@ -677,10 +676,16 @@ public abstract class SqoopConfig extends BlockableJobConfig implements XulEvent
     this.mode = propertyChange( MODE, this.mode, mode );
   }
 
+  //FIXME dont use, get value from config value
   public String getClusterName() {
     return clusterName;
   }
 
+  public String getNamedClusterName() {
+    return getNamedCluster() != null ? getNamedCluster().getName() : null;
+  }
+
+  //FIXME dont use, get value from config value
   public void setClusterName( String clusterName ) {
     this.clusterName = propertyChange( "clusterName", this.clusterName, clusterName );
   }
@@ -976,7 +981,7 @@ public abstract class SqoopConfig extends BlockableJobConfig implements XulEvent
   }
 
   public boolean isAdvancedClusterConfigSet() {
-    return Strings.isNullOrEmpty( getClusterName() ) && ncPropertiesNotNullOrEmpty( getNamedCluster() );
+    return Strings.isNullOrEmpty( getNamedClusterName() ) && ncPropertiesNotNullOrEmpty( getNamedCluster() );
   }
 
   private static Map<String, String> namedClusterProperties( NamedCluster namedCluster ) {

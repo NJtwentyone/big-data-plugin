@@ -152,7 +152,7 @@ public abstract class AbstractSqoopJobEntry<S extends SqoopConfig> extends Abstr
   private boolean loadNamedCluster( IMetaStore metaStore ) {
     try {
       // attempt to load from named cluster
-      String clusterName = getJobConfig().getClusterName();
+      String clusterName = getJobConfig().getNamedClusterName();
 
       return loadNamedCluster( clusterName );
     } catch ( Throwable t ) {

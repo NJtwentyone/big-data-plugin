@@ -250,7 +250,7 @@ public abstract class AbstractSqoopJobEntryController<S extends SqoopConfig, E e
     XulMenuList<NamedCluster> namedClusterMenu =
         (XulMenuList<NamedCluster>) container.getDocumentRoot().getElementById( "named-clusters" ); //$NON-NLS-1$
     try {
-      String cn = config.getClusterName();
+      String cn = config.getNamedClusterName();
       if ( cn != null ) {
         NamedCluster namedCluster = jobEntry.getNamedClusterService().read( cn, getMetaStore() );
         namedClusterMenu.setSelectedItem( namedCluster );
