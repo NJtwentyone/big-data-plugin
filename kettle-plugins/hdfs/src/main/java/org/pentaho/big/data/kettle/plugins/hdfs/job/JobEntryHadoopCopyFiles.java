@@ -23,6 +23,7 @@
 package org.pentaho.big.data.kettle.plugins.hdfs.job;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.pentaho.di.ui.repository.repositoryexplorer.model.UIRepositoryContent;
 import org.pentaho.hadoop.shim.api.cluster.NamedClusterService;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.annotations.JobEntry;
@@ -33,6 +34,8 @@ import org.pentaho.metastore.api.IMetaStore;
 import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Map;
 
 @JobEntry( id = "HadoopCopyFilesPlugin", image = "HDM.svg", name = "HadoopCopyFilesPlugin.Name",
@@ -55,6 +58,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
     this.runtimeTester = runtimeTester;
   }
 
+  @Override
   public String loadURL( String url, String ncName, IMetaStore metastore, Map mappings ) {
     NamedCluster c = namedClusterService.getNamedClusterByName( ncName, metastore );
     String origUrl;
@@ -72,12 +76,50 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
       url = c.processURLsubstitution( url, metastore, getVariables() );
     }
     if ( pref != null ) {
-      url = pref + url;
+      url = pref + url; // FIXME isn't this just origUrl
     }
+    // TODO call super #loadURL
     if ( !Const.isEmpty( ncName ) && !Const.isEmpty( url ) ) {
       mappings.put( url, ncName );
     }
     return url;
+  }
+
+  @Override
+  public String saveURL( String url, String ncName, IMetaStore metastore, Map<String, String> mappings ) {
+//    NamedCluster c = namedClusterService.getNamedClusterByName( ncName, metastore );
+    String origUrl = null;
+    String pref = null;
+    if ( url != null && url.indexOf( SOURCE_URL ) > -1 ) {
+      origUrl = url;
+      url = origUrl.substring( origUrl.indexOf( "-", origUrl.indexOf( SOURCE_URL ) + SOURCE_URL.length() ) + 1 );
+      pref = origUrl.substring( 0, origUrl.indexOf( "-", origUrl.indexOf( SOURCE_URL ) + SOURCE_URL.length() ) + 1 );
+    } else if ( url != null && url.indexOf( DEST_URL ) > -1 ) {
+      origUrl = url;
+      url = origUrl.substring( origUrl.indexOf( "-", origUrl.indexOf( DEST_URL ) + DEST_URL.length() ) + 1 );
+      pref = origUrl.substring( 0, origUrl.indexOf( "-", origUrl.indexOf( DEST_URL ) + DEST_URL.length() ) + 1 );
+    }
+    /**
+     * what is "prependCluster" logic in #processURLsubstitution
+     * <code>
+     *   url = c.processURLsubstitution( url, metastore, getVariables() );
+     * </code>
+     *
+     * source class: NamedClusterImpl.java#processURLsubstitution(
+     *
+     * can we assume the url part is fully resolved!? and valid java.net.URL or parseable by Apache VFS's UrlFileNameParser
+     */
+
+    // TODO only execute #getPath if NamedCluster is not null
+    String path = null;
+    try {
+      path = new URI( url ).getPath();
+    } catch ( URISyntaxException use ) {
+      // do nothing
+    }
+
+    return ( path != null ) ? pref + path : origUrl; // TODO other edge cases ie origUrl is null fails to parse
+
   }
 
   @VisibleForTesting
