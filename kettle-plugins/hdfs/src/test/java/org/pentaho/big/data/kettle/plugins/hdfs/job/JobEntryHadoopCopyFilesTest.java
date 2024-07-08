@@ -24,6 +24,7 @@ package org.pentaho.big.data.kettle.plugins.hdfs.job;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles;
 import org.pentaho.hadoop.shim.api.cluster.NamedCluster;
 import org.pentaho.hadoop.shim.api.cluster.NamedClusterService;
 import org.pentaho.di.core.hadoop.HadoopSpoonPlugin;
@@ -134,5 +135,33 @@ public class JobEntryHadoopCopyFilesTest {
         .thenReturn( testNewUrl );
     assertEquals( testNewUrl, jobEntryHadoopCopyFiles.loadURL( testUrl, testNcName, metaStore, mappings ) );
     verify( mappings ).put( testNewUrl, testNcName );
+  }
+
+  @Test
+  public void testLoadUrlHdfsEMPTY_SOURCE_URL() {
+    when( namedClusterManager.getNamedClusterByName( testNcName, metaStore ) ).thenReturn( namedCluster );
+    when( namedCluster.isMapr() ).thenReturn( false );
+    String testNewUrl = HadoopSpoonPlugin.HDFS_SCHEME + "://" + "testNewUrl";
+    when( namedCluster.processURLsubstitution( testUrl, metaStore, jobEntryHadoopCopyFiles.getVariables() ) )
+      .thenReturn( testNewUrl );
+    String prefixUrlSource = JobEntryCopyFiles.SOURCE_URL + 8 + "-";
+    String testPrefixSourceUrl = prefixUrlSource + testUrl;
+    String expectedPrefixSourceLoadUrl = prefixUrlSource + testNewUrl;
+    assertEquals(  expectedPrefixSourceLoadUrl, jobEntryHadoopCopyFiles.loadURL( testPrefixSourceUrl, testNcName, metaStore, mappings ) );
+    verify( mappings ).put( expectedPrefixSourceLoadUrl, testNcName );
+  }
+
+  @Test
+  public void testLoadUrlHdfsEMPTY_DEST_URL() {
+    when( namedClusterManager.getNamedClusterByName( testNcName, metaStore ) ).thenReturn( namedCluster );
+    when( namedCluster.isMapr() ).thenReturn( false );
+    String testNewUrl = HadoopSpoonPlugin.HDFS_SCHEME + "://" + "testNewUrl";
+    when( namedCluster.processURLsubstitution( testUrl, metaStore, jobEntryHadoopCopyFiles.getVariables() ) )
+      .thenReturn( testNewUrl );
+    String prefixUrlDest = JobEntryCopyFiles.DEST_URL + 5 + "-";
+    String testPrefixDestUrl = prefixUrlDest + testUrl;
+    String expectedPrefixDestLoadUrl = prefixUrlDest + testNewUrl;
+    assertEquals(  expectedPrefixDestLoadUrl, jobEntryHadoopCopyFiles.loadURL( testPrefixDestUrl, testNcName, metaStore, mappings ) );
+    verify( mappings ).put( expectedPrefixDestLoadUrl, testNcName );
   }
 }
