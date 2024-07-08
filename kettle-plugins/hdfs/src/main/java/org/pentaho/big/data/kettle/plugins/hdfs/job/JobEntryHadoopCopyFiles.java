@@ -52,7 +52,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
   private final RuntimeTestActionService runtimeTestActionService;
   private final RuntimeTester runtimeTester;
 
-  private Map<String, String> reverseUrlLookup = new HashMap<>();
+  protected Map<String, String> reverseUrlLookup = new HashMap<>();
 
   public JobEntryHadoopCopyFiles( NamedClusterService namedClusterService,
                                   RuntimeTestActionService runtimeTestActionService, RuntimeTester runtimeTester ) {
