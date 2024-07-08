@@ -36,6 +36,7 @@ import org.pentaho.runtime.test.action.RuntimeTestActionService;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.Map;
 
 @JobEntry( id = "HadoopCopyFilesPlugin", image = "HDM.svg", name = "HadoopCopyFilesPlugin.Name",
@@ -51,6 +52,8 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
   private final RuntimeTestActionService runtimeTestActionService;
   private final RuntimeTester runtimeTester;
 
+  private Map<String, String> reverseUrlLookup = new HashMap<>();
+
   public JobEntryHadoopCopyFiles( NamedClusterService namedClusterService,
                                   RuntimeTestActionService runtimeTestActionService, RuntimeTester runtimeTester ) {
     this.namedClusterService = namedClusterService;
@@ -63,6 +66,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
     NamedCluster c = namedClusterService.getNamedClusterByName( ncName, metastore );
     String origUrl;
     String pref = null;
+    String urlPreProcessURLsubstitution = null;
     if ( url != null && url.indexOf( SOURCE_URL ) > -1 ) {
       origUrl = url;
       url = origUrl.substring( origUrl.indexOf( "-", origUrl.indexOf( SOURCE_URL ) + SOURCE_URL.length() ) + 1 );
@@ -73,12 +77,13 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
       pref = origUrl.substring( 0, origUrl.indexOf( "-", origUrl.indexOf( DEST_URL ) + DEST_URL.length() ) + 1 );
     }
     if ( c != null ) {
+      urlPreProcessURLsubstitution = url;
       url = c.processURLsubstitution( url, metastore, getVariables() );
     }
     if ( pref != null ) {
-      url = pref + url; // FIXME isn't this just origUrl
+      url = pref + url; // after #processURLsubstitution
+      reverseUrlLookup.put( url, urlPreProcessURLsubstitution );
     }
-    // TODO call super #loadURL
     if ( !Const.isEmpty( ncName ) && !Const.isEmpty( url ) ) {
       mappings.put( url, ncName );
     }
