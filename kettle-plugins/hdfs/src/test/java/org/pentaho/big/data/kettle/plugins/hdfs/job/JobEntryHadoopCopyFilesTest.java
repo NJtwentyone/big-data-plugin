@@ -113,6 +113,7 @@ public class JobEntryHadoopCopyFilesTest {
         .thenReturn( testNewUrl );
     assertEquals( testNewUrl, jobEntryHadoopCopyFiles.loadURL( testUrl, testNcName, metaStore, mappings ) );
     verify( mappings ).put( testNewUrl, testNcName );
+    assertEquals( testUrl, jobEntryHadoopCopyFiles.reverseUrlLookup.get( testNewUrl ) );
   }
 
   @Test
@@ -124,6 +125,7 @@ public class JobEntryHadoopCopyFilesTest {
         .thenReturn( testNewUrl );
     assertEquals( testNewUrl, jobEntryHadoopCopyFiles.loadURL( testUrl, testNcName, metaStore, mappings ) );
     verify( mappings ).put( testNewUrl, testNcName );
+    assertEquals( testUrl, jobEntryHadoopCopyFiles.reverseUrlLookup.get( testNewUrl ) );
   }
 
   @Test
@@ -135,6 +137,7 @@ public class JobEntryHadoopCopyFilesTest {
         .thenReturn( testNewUrl );
     assertEquals( testNewUrl, jobEntryHadoopCopyFiles.loadURL( testUrl, testNcName, metaStore, mappings ) );
     verify( mappings ).put( testNewUrl, testNcName );
+    assertEquals( testUrl, jobEntryHadoopCopyFiles.reverseUrlLookup.get( testNewUrl ) );
   }
 
   @Test
