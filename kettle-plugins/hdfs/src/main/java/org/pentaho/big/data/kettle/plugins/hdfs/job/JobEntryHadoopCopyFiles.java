@@ -38,6 +38,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @JobEntry( id = "HadoopCopyFilesPlugin", image = "HDM.svg", name = "HadoopCopyFilesPlugin.Name",
   description = "HadoopCopyFilesPlugin.Description",
@@ -66,7 +67,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
     NamedCluster c = namedClusterService.getNamedClusterByName( ncName, metastore );
     String origUrl;
     String pref = null;
-    String urlPreProcessURLsubstitution = null;
+    String resolvedUrl = null;
     if ( url != null && url.indexOf( SOURCE_URL ) > -1 ) {
       origUrl = url;
       url = origUrl.substring( origUrl.indexOf( "-", origUrl.indexOf( SOURCE_URL ) + SOURCE_URL.length() ) + 1 );
@@ -77,13 +78,20 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
       pref = origUrl.substring( 0, origUrl.indexOf( "-", origUrl.indexOf( DEST_URL ) + DEST_URL.length() ) + 1 );
     }
     if ( c != null ) {
-      urlPreProcessURLsubstitution = url;
+      resolvedUrl = url;
       url = c.processURLsubstitution( url, metastore, getVariables() );
+      if ( Objects.equals( resolvedUrl, url ) ) { // no need to track
+        resolvedUrl = null;
+      }
     }
     if ( pref != null ) {
       url = pref + url; // after #processURLsubstitution
-      reverseUrlLookup.put( url, urlPreProcessURLsubstitution );
     }
+
+    if ( resolvedUrl != null ) {
+      reverseUrlLookup.put( url, resolvedUrl );
+    }
+
     if ( !Const.isEmpty( ncName ) && !Const.isEmpty( url ) ) {
       mappings.put( url, ncName );
     }
@@ -92,39 +100,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
 
   @Override
   public String saveURL( String url, String ncName, IMetaStore metastore, Map<String, String> mappings ) {
-//    NamedCluster c = namedClusterService.getNamedClusterByName( ncName, metastore );
-    String origUrl = null;
-    String pref = null;
-    if ( url != null && url.indexOf( SOURCE_URL ) > -1 ) {
-      origUrl = url;
-      url = origUrl.substring( origUrl.indexOf( "-", origUrl.indexOf( SOURCE_URL ) + SOURCE_URL.length() ) + 1 );
-      pref = origUrl.substring( 0, origUrl.indexOf( "-", origUrl.indexOf( SOURCE_URL ) + SOURCE_URL.length() ) + 1 );
-    } else if ( url != null && url.indexOf( DEST_URL ) > -1 ) {
-      origUrl = url;
-      url = origUrl.substring( origUrl.indexOf( "-", origUrl.indexOf( DEST_URL ) + DEST_URL.length() ) + 1 );
-      pref = origUrl.substring( 0, origUrl.indexOf( "-", origUrl.indexOf( DEST_URL ) + DEST_URL.length() ) + 1 );
-    }
-    /**
-     * what is "prependCluster" logic in #processURLsubstitution
-     * <code>
-     *   url = c.processURLsubstitution( url, metastore, getVariables() );
-     * </code>
-     *
-     * source class: NamedClusterImpl.java#processURLsubstitution(
-     *
-     * can we assume the url part is fully resolved!? and valid java.net.URL or parseable by Apache VFS's UrlFileNameParser
-     */
-
-    // TODO only execute #getPath if NamedCluster is not null
-    String path = null;
-    try {
-      path = new URI( url ).getPath();
-    } catch ( URISyntaxException use ) {
-      // do nothing
-    }
-
-    return ( path != null ) ? pref + path : origUrl; // TODO other edge cases ie origUrl is null fails to parse
-
+    return reverseUrlLookup.getOrDefault( url, url );
   }
 
   @VisibleForTesting
