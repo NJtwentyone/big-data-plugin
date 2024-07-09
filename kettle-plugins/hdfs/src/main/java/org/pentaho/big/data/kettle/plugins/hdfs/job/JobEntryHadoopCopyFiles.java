@@ -92,10 +92,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
       reverseUrlLookup.put( url, argumentUrl );
     }
 
-    if ( !Const.isEmpty( ncName ) && !Const.isEmpty( url ) ) {
-      mappings.put( url, ncName );
-    }
-    return url;
+    return super.loadURL( url, ncName, metastore, mappings );
   }
 
   @Override
