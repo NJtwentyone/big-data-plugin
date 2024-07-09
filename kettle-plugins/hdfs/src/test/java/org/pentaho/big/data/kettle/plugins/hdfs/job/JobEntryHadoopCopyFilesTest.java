@@ -152,7 +152,7 @@ public class JobEntryHadoopCopyFilesTest {
     String expectedPrefixSourceLoadUrl = prefixUrlSource + testNewUrl;
     assertEquals( expectedPrefixSourceLoadUrl, jobEntryHadoopCopyFiles.loadURL( testPrefixSourceUrl, testNcName, metaStore, mappings ) );
     verify( mappings ).put( expectedPrefixSourceLoadUrl, testNcName );
-    assertEquals( testUrl, jobEntryHadoopCopyFiles.reverseUrlLookup.get( expectedPrefixSourceLoadUrl ) );
+    assertEquals( testPrefixSourceUrl, jobEntryHadoopCopyFiles.reverseUrlLookup.get( expectedPrefixSourceLoadUrl ) );
   }
 
   @Test
@@ -167,6 +167,6 @@ public class JobEntryHadoopCopyFilesTest {
     String expectedPrefixDestLoadUrl = prefixUrlDest + testNewUrl;
     assertEquals( expectedPrefixDestLoadUrl, jobEntryHadoopCopyFiles.loadURL( testPrefixDestUrl, testNcName, metaStore, mappings ) );
     verify( mappings ).put( expectedPrefixDestLoadUrl, testNcName );
-    assertEquals( testUrl, jobEntryHadoopCopyFiles.reverseUrlLookup.get( expectedPrefixDestLoadUrl ) );
+    assertEquals( testPrefixDestUrl, jobEntryHadoopCopyFiles.reverseUrlLookup.get( expectedPrefixDestLoadUrl ) );
   }
 }

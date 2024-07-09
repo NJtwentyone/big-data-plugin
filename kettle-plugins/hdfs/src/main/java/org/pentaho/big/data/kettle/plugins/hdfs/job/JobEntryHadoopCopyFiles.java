@@ -65,9 +65,11 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
   @Override
   public String loadURL( String url, String ncName, IMetaStore metastore, Map mappings ) {
     NamedCluster c = namedClusterService.getNamedClusterByName( ncName, metastore );
+    String argumentUrl = url;
+    boolean saveArgumentUrl = false;
     String origUrl;
     String pref = null;
-    String resolvedUrl = null;
+
     if ( url != null && url.indexOf( SOURCE_URL ) > -1 ) {
       origUrl = url;
       url = origUrl.substring( origUrl.indexOf( "-", origUrl.indexOf( SOURCE_URL ) + SOURCE_URL.length() ) + 1 );
@@ -78,18 +80,16 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
       pref = origUrl.substring( 0, origUrl.indexOf( "-", origUrl.indexOf( DEST_URL ) + DEST_URL.length() ) + 1 );
     }
     if ( c != null ) {
-      resolvedUrl = url;
+      String valueBeforeCall = url;
       url = c.processURLsubstitution( url, metastore, getVariables() );
-      if ( Objects.equals( resolvedUrl, url ) ) { // no need to track
-        resolvedUrl = null;
-      }
+      saveArgumentUrl = !Objects.equals( valueBeforeCall, url );
     }
     if ( pref != null ) {
-      url = pref + url; // after #processURLsubstitution
+      url = pref + url;
     }
 
-    if ( resolvedUrl != null ) {
-      reverseUrlLookup.put( url, resolvedUrl );
+    if ( saveArgumentUrl ) {
+      reverseUrlLookup.put( url, argumentUrl );
     }
 
     if ( !Const.isEmpty( ncName ) && !Const.isEmpty( url ) ) {
