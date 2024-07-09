@@ -97,7 +97,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
 
   @Override
   public String saveURL( String url, String ncName, IMetaStore metastore, Map<String, String> mappings ) {
-    return reverseUrlLookup.getOrDefault( url, url );
+    return reverseUrlLookup.getOrDefault( url, super.saveURL( url, ncName, metastore, mappings ) );
   }
 
   @VisibleForTesting
