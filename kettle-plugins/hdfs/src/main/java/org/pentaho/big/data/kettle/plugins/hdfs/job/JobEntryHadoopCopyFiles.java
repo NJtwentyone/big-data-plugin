@@ -23,11 +23,11 @@
 package org.pentaho.big.data.kettle.plugins.hdfs.job;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.pentaho.hadoop.shim.api.cluster.NamedClusterService;
 import org.pentaho.di.core.annotations.JobEntry;
 import org.pentaho.di.core.variables.VariableSpace;
 import org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles;
 import org.pentaho.hadoop.shim.api.cluster.NamedCluster;
+import org.pentaho.hadoop.shim.api.cluster.NamedClusterService;
 import org.pentaho.metastore.api.IMetaStore;
 import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
@@ -93,7 +93,9 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
 
   @Override
   public String saveURL( String url, String ncName, IMetaStore metastore, Map<String, String> mappings ) {
-    return fileFolderUrlMappings.getOrDefault( url, super.saveURL( url, ncName, metastore, mappings ) );
+    return !Objects.isNull( url ) && fileFolderUrlMappings.containsKey( url )
+      ? fileFolderUrlMappings.get( url )
+      : super.saveURL( url, ncName, metastore, mappings );
   }
 
   @VisibleForTesting
