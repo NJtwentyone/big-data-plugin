@@ -23,9 +23,7 @@
 package org.pentaho.big.data.kettle.plugins.hdfs.job;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.pentaho.di.ui.repository.repositoryexplorer.model.UIRepositoryContent;
 import org.pentaho.hadoop.shim.api.cluster.NamedClusterService;
-import org.pentaho.di.core.Const;
 import org.pentaho.di.core.annotations.JobEntry;
 import org.pentaho.di.core.variables.VariableSpace;
 import org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles;
@@ -34,8 +32,6 @@ import org.pentaho.metastore.api.IMetaStore;
 import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -53,7 +49,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
   private final RuntimeTestActionService runtimeTestActionService;
   private final RuntimeTester runtimeTester;
 
-  protected Map<String, String> reverseUrlLookup = new HashMap<>();
+  protected Map<String, String> fileFolderUrlMappings = new HashMap<>();
 
   public JobEntryHadoopCopyFiles( NamedClusterService namedClusterService,
                                   RuntimeTestActionService runtimeTestActionService, RuntimeTester runtimeTester ) {
@@ -89,7 +85,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
     }
 
     if ( saveArgumentUrl ) {
-      reverseUrlLookup.put( url, argumentUrl );
+      fileFolderUrlMappings.put( url, argumentUrl );
     }
 
     return super.loadURL( url, ncName, metastore, mappings );
@@ -97,7 +93,7 @@ public class JobEntryHadoopCopyFiles extends JobEntryCopyFiles {
 
   @Override
   public String saveURL( String url, String ncName, IMetaStore metastore, Map<String, String> mappings ) {
-    return reverseUrlLookup.getOrDefault( url, super.saveURL( url, ncName, metastore, mappings ) );
+    return fileFolderUrlMappings.getOrDefault( url, super.saveURL( url, ncName, metastore, mappings ) );
   }
 
   @VisibleForTesting
