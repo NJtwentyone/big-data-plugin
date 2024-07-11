@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2019 by Hitachi Vantara : http://www.pentaho.com
+ * Copyright (C) 2002-2024 by Hitachi Vantara : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -171,9 +171,28 @@ public class JobEntryHadoopCopyFilesTest {
   }
 
   @Test
-  public void testSaveUrlMappingsClear() {
+  public void testSaveUrlMappingsKeyMisses() {
     String testUrl = "/src/path/";
     jobEntryHadoopCopyFiles.fileFolderUrlMappings.clear();
-    assertEquals( testUrl,  jobEntryHadoopCopyFiles.saveURL( testUrl, testNcName, metaStore, mappings ) );
+    // populating with other values
+    jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( "KeyA", "ValueA" );
+    jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( "KeyB", "ValueB" );
+    jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( "/src", "ValueC" );
+    jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( "/src/path/anotherPath", "ValueD" );
+    assertEquals( testUrl, jobEntryHadoopCopyFiles.saveURL( testUrl, testNcName, metaStore, mappings ) );
+
+    assertNull( testUrl, jobEntryHadoopCopyFiles.saveURL( null, testNcName, metaStore, mappings ) );
+  }
+
+  @Test
+  public void testSaveUrlMappingsKeyHits() {
+    String testUrl = "/src/path/";
+    String testUrlSubstituted = "hdfs://someHostname/src/path";
+    jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( "KeyA", "ValueA" );
+    jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( "KeyB", "ValueB" );
+    jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( "/src", "ValueC" );
+    jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( "/src/path/anotherPath", "ValueD" );
+    jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( testUrlSubstituted, testUrl );
+    assertEquals( testUrl, jobEntryHadoopCopyFiles.saveURL( testUrl, testNcName, metaStore, mappings ) );
   }
 }
