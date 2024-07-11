@@ -24,20 +24,32 @@ package org.pentaho.big.data.kettle.plugins.hdfs.job;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.pentaho.di.core.database.DatabaseMeta;
+import org.pentaho.di.core.xml.XMLHandler;
+import org.pentaho.di.job.Job;
+import org.pentaho.di.job.JobMeta;
 import org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles;
+import org.pentaho.di.trans.steps.named.cluster.NamedClusterEmbedManager;
 import org.pentaho.hadoop.shim.api.cluster.NamedCluster;
 import org.pentaho.hadoop.shim.api.cluster.NamedClusterService;
 import org.pentaho.di.core.hadoop.HadoopSpoonPlugin;
 import org.pentaho.metastore.api.IMetaStore;
 import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
+import org.w3c.dom.Document;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -54,6 +66,8 @@ public class JobEntryHadoopCopyFilesTest {
   private IMetaStore metaStore;
   private Map mappings;
   private NamedCluster namedCluster;
+  private NamedClusterEmbedManager mockNamedClusterEmbedManager;
+  private final String EMPTY = "";
 
   @Before
   public void setup() {
@@ -68,6 +82,13 @@ public class JobEntryHadoopCopyFilesTest {
     metaStore = mock( IMetaStore.class );
     mappings = mock( Map.class );
     namedCluster = mock( NamedCluster.class );
+    // TODO wire mock mockNamedClusterEmbedManager,
+    Job parentJob = new Job();
+    jobEntryHadoopCopyFiles.setParentJob( parentJob );
+    JobMeta mockJobMeta = mock( JobMeta.class );
+    mockNamedClusterEmbedManager = mock( NamedClusterEmbedManager.class );
+    when( mockJobMeta.getNamedClusterEmbedManager() ).thenReturn(  mockNamedClusterEmbedManager );
+    jobEntryHadoopCopyFiles.setParentJobMeta(  mockJobMeta );
   }
 
   @Test
@@ -194,5 +215,40 @@ public class JobEntryHadoopCopyFilesTest {
     jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( "/src/path/anotherPath", "ValueD" );
     jobEntryHadoopCopyFiles.fileFolderUrlMappings.put( testUrlSubstituted, testUrl );
     assertEquals( testUrl, jobEntryHadoopCopyFiles.saveURL( testUrl, testNcName, metaStore, mappings ) );
+  }
+
+
+  @Test
+  public void saveLoadWithNamedClusters() throws Exception {
+    String srcPath = "EMPTY_SOURCE_URL-0-hdfs://user321:321fake@foo.bar.com:8020/user/user321";
+    String destPath = "EMPTY_DEST_URL-0-hdfs://user123:fake123@foo.bar.com:8020/user/user123";
+
+    jobEntryHadoopCopyFiles.source_filefolder = new String[] { srcPath };
+    jobEntryHadoopCopyFiles.destination_filefolder = new String[] { destPath };
+    jobEntryHadoopCopyFiles.wildcard = new String[] { EMPTY };
+
+    String xml = "<entry>" + jobEntryHadoopCopyFiles.getXML() + "</entry>"; // runs through all the loadURL and saveURL logic
+    assertTrue( xml.contains( srcPath ) );
+    assertTrue( xml.contains( destPath ) );
+    JobEntryCopyFiles loadedentry = new JobEntryCopyFiles();
+    InputStream is = new ByteArrayInputStream( xml.getBytes() );
+    loadedentry.loadXML( XMLHandler.getSubNode(
+        XMLHandler.loadXMLFile( is,
+          null,
+          false,
+          false ),
+        "entry" ),
+      new ArrayList<DatabaseMeta>(),
+      null,
+      null,
+      null );
+    // NOTE: passwords should not be "scrubbed"
+    assertTrue( loadedentry.source_filefolder[0].equals( srcPath ) );
+    assertTrue( loadedentry.destination_filefolder[0].equals( destPath ) );
+    verify( mockNamedClusterEmbedManager, times( 2 ) ).registerUrl( anyString() ); // might not be mocked correctly
+  }
+
+  protected void addNodeAfter( Document xmlDocument, String xmlNodeString ) {
+    // TODO
   }
 }
