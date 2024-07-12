@@ -24,7 +24,6 @@ package org.pentaho.big.data.kettle.plugins.hdfs.job;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.pentaho.di.core.database.DatabaseConnectionPoolParameter;
 import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.xml.XMLHandler;
 import org.pentaho.di.job.Job;
@@ -38,11 +37,12 @@ import org.pentaho.metastore.api.IMetaStore;
 import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import javax.print.Doc;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -62,6 +62,8 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -73,6 +75,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.DESTINATION_FILE_FOLDER;
+import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.SOURCE_FILE_FOLDER;
 
 /**
  * Created by bryan on 11/23/15.
@@ -251,14 +255,15 @@ public class JobEntryHadoopCopyFilesTest {
     String xml = "<entry>" + jobEntryHadoopCopyFiles.getXML() + "</entry>"; // runs through all the loadURL and saveURL logic
 
     Document xmlDocument = getDocument( xml );
-    String toStringXmlDocument = toString( xmlDocument );
 
-    XPath xPath = XPathFactory.newInstance().newXPath();
-    String expression = "/entry/fields/field/source_filefolder";
-    String source_file_folder_text="EMPTY_SOURCE_URL-0-hdfs://user321:321fake@foo.bar.com:8020/user/user321";
-    NodeList nodeList = (NodeList) xPath.compile(expression).evaluate(xmlDocument, XPathConstants.NODESET);
-    NodeList nodeList1 = getFileFolderNodeList( xmlDocument );
+    // add new node
+    String exampleSourceConfig0 = "<source_configuration_name>STATIC-SOURCE-FILE-0</source_configuration_name>";
+    addSibling( xmlDocument, "EMPTY_SOURCE_URL-0", exampleSourceConfig0 );
 
+    // save back changes
+    xml = toString( xmlDocument );
+
+    // TODO verify still correct test logic
     assertTrue( xml.contains( srcPath ) );
     assertTrue( xml.contains( destPath ) );
     JobEntryCopyFiles loadedentry = new JobEntryCopyFiles();
@@ -289,7 +294,7 @@ public class JobEntryHadoopCopyFilesTest {
     String XML_HEADER = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
     String xmlString =/* XML_HEADER +*/ xmlSnippet;
     Document xmlDocument = builder.parse( new InputSource( new StringReader( xmlString ) ) );
-    return xmlDocument;
+    return xmlDocument; // TODO pentaho XMLHandler.loadXMLFile
   }
 
   public static String toString( Document document ) throws TransformerException {
@@ -301,12 +306,51 @@ public class JobEntryHadoopCopyFilesTest {
   }
 
   protected static NodeList getFileFolderNodeList( Document document ) throws XPathExpressionException {
-    String sourceFF = "/entry/fields/field/source_filefolder";
-    String destinationFF = "/entry/fields/field/destination_filefolder";
+    String baesPath = "/entry/fields/field/";
+    String sourceFF = baesPath + SOURCE_FILE_FOLDER;
+    String destinationFF = baesPath + DESTINATION_FILE_FOLDER;
 //    String expression = "/entry/fields/field/source_filefolder";
     String expression = sourceFF + " | " + destinationFF;
     XPath xPath = XPathFactory.newInstance().newXPath();
     NodeList nodeList = (NodeList) xPath.compile( expression ).evaluate( document, XPathConstants.NODESET );
     return nodeList;
+  }
+
+  protected static void addSibling( Document document, String fileFolderNodeSearchStartsWith, String xmlNewNode )
+    throws XPathExpressionException, ParserConfigurationException, IOException, SAXException {
+    NodeList fileFolders = getFileFolderNodeList( document );
+    Node matchedNode = toStream( fileFolders )
+        .filter( n -> n.getTextContent().startsWith( fileFolderNodeSearchStartsWith ) )
+        .findFirst()
+        .orElse( null );
+    if ( matchedNode != null ) {
+      appendChild( matchedNode.getParentNode(), createNode( xmlNewNode ) );
+    }
+  }
+
+  protected static Stream<Node> toStream( NodeList nodeList ) {
+    return IntStream.range( 0, nodeList.getLength() ) .mapToObj( nodeList::item );
+  }
+
+  protected static Element createNode( String xmlString ) throws ParserConfigurationException, IOException,
+    SAXException {
+    return DocumentBuilderFactory
+      .newInstance()
+      .newDocumentBuilder()
+      .parse( new ByteArrayInputStream( xmlString.getBytes() ) )
+      .getDocumentElement(); // TODO look at XMLHandler.loadXMLString(
+  }
+
+  protected static Node appendChild( Node node, Node child ) {
+    /**
+     * have to do this import since we don't have access to original Document builder
+     * otherwise you'll get:
+     * org.w3c.dom.DOMException: WRONG_DOCUMENT_ERR: A node is used in a different document than the one that created it
+     */
+    Document ownerDocument = node.getOwnerDocument();
+    Node importedNode = ownerDocument.importNode( child, true );
+    node.appendChild( importedNode );
+
+    return importedNode;
   }
 }
