@@ -37,7 +37,6 @@ import org.pentaho.metastore.api.IMetaStore;
 import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
@@ -62,6 +61,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -258,7 +258,7 @@ public class JobEntryHadoopCopyFilesTest {
 
     // add new node
     String exampleSourceConfig0 = "<source_configuration_name>STATIC-SOURCE-FILE-0</source_configuration_name>";
-    addSibling( xmlDocument, "EMPTY_SOURCE_URL-0", exampleSourceConfig0 );
+    addOrUpdateSibling( xmlDocument, "EMPTY_SOURCE_URL-0", exampleSourceConfig0 );
 
     // save back changes
     xml = toString( xmlDocument );
@@ -282,10 +282,6 @@ public class JobEntryHadoopCopyFilesTest {
     assertTrue( loadedentry.source_filefolder[0].equals( srcPath ) );
     assertTrue( loadedentry.destination_filefolder[0].equals( destPath ) );
     verify( mockNamedClusterEmbedManager, times( 2 ) ).registerUrl( anyString() ); // might not be mocked correctly
-  }
-
-  protected void addNodeAfter( Document xmlDocument, String xmlNodeString ) {
-    // TODO
   }
 
   protected static Document getDocument( String xmlSnippet ) throws ParserConfigurationException, IOException, SAXException {
@@ -316,23 +312,35 @@ public class JobEntryHadoopCopyFilesTest {
     return nodeList;
   }
 
-  protected static void addSibling( Document document, String fileFolderNodeSearchStartsWith, String xmlNewNode )
+  protected static Node addOrUpdateSibling( Document document, String fileFolderNodeSearchStartsWith, String xmlNewNode )
     throws XPathExpressionException, ParserConfigurationException, IOException, SAXException {
     NodeList fileFolders = getFileFolderNodeList( document );
     Node matchedNode = toStream( fileFolders )
         .filter( n -> n.getTextContent().startsWith( fileFolderNodeSearchStartsWith ) )
         .findFirst()
         .orElse( null );
-    if ( matchedNode != null ) {
-      appendChild( matchedNode.getParentNode(), createNode( xmlNewNode ) );
+
+    if ( matchedNode == null ) {
+      return null;
     }
+
+    Node newNode = createNode( document, xmlNewNode );
+    Node parentNode = matchedNode.getParentNode();
+    Node oldChild = toStream( parentNode.getChildNodes() )
+        .filter(  n -> Objects.equals( n.getNodeName(), newNode.getNodeName() ) )
+        .findFirst()
+        .orElse( null );
+
+    return (  oldChild != null )
+      ? matchedNode.getParentNode().replaceChild( newNode, oldChild )
+      : matchedNode.getParentNode().appendChild( newNode );
   }
 
   protected static Stream<Node> toStream( NodeList nodeList ) {
     return IntStream.range( 0, nodeList.getLength() ) .mapToObj( nodeList::item );
   }
 
-  protected static Element createNode( String xmlString ) throws ParserConfigurationException, IOException,
+  protected static Node createNode( String xmlString ) throws ParserConfigurationException, IOException,
     SAXException {
     return DocumentBuilderFactory
       .newInstance()
@@ -341,7 +349,23 @@ public class JobEntryHadoopCopyFilesTest {
       .getDocumentElement(); // TODO look at XMLHandler.loadXMLString(
   }
 
-  protected static Node appendChild( Node node, Node child ) {
+  protected static Node createNode( Document ownerDocument, String xmlString ) throws ParserConfigurationException, IOException,
+    SAXException {
+    Node unImportedNode = createNode( xmlString );
+    return importNode( ownerDocument, unImportedNode );
+  }
+
+  protected static Node importNode( Document ownerDocument, Node newNode ) {
+    /**
+     * have to do this import since we don't have access to original Document builder
+     * otherwise you'll get:
+     * org.w3c.dom.DOMException: WRONG_DOCUMENT_ERR: A node is used in a different document than the one that created it
+     */
+    Node importedNode = ownerDocument.importNode( newNode, true );
+    return importedNode;
+  }
+
+  protected static Node insertAfterPOC( Node node, Node child ) { // these nodes are siblings
     /**
      * have to do this import since we don't have access to original Document builder
      * otherwise you'll get:
@@ -349,7 +373,9 @@ public class JobEntryHadoopCopyFilesTest {
      */
     Document ownerDocument = node.getOwnerDocument();
     Node importedNode = ownerDocument.importNode( child, true );
-    node.appendChild( importedNode );
+    Node next = node.getParentNode().getChildNodes().item( 0 ); // TODO get actual index
+    node.insertBefore( importedNode, next );
+    //    parent.appendChild( importedNode );
 
     return importedNode;
   }
