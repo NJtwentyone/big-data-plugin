@@ -68,19 +68,27 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.DESTINATION_CONFIGURATION_NAME;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.DESTINATION_FILE_FOLDER;
+import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.DEST_URL;
+import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.LOCAL_SOURCE_FILE;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.SOURCE_CONFIGURATION_NAME;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.SOURCE_FILE_FOLDER;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.SOURCE_URL;
+import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.STATIC_DEST_FILE;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.STATIC_SOURCE_FILE;
 
 /**
@@ -111,13 +119,13 @@ public class JobEntryHadoopCopyFilesTest {
     metaStore = mock( IMetaStore.class );
     mappings = mock( Map.class );
     namedCluster = mock( NamedCluster.class );
-    // TODO wire mock mockNamedClusterEmbedManager,
     Job parentJob = new Job();
     jobEntryHadoopCopyFiles.setParentJob( parentJob );
     JobMeta mockJobMeta = mock( JobMeta.class );
     mockNamedClusterEmbedManager = mock( NamedClusterEmbedManager.class );
     when( mockJobMeta.getNamedClusterEmbedManager() ).thenReturn(  mockNamedClusterEmbedManager );
     jobEntryHadoopCopyFiles.setParentJobMeta(  mockJobMeta );
+    jobEntryHadoopCopyFiles.setMetaStore( metaStore );
   }
 
   @Test
@@ -250,30 +258,65 @@ public class JobEntryHadoopCopyFilesTest {
 
   @Test
   public void saveLoadWithNamedClusters() throws Exception {
-    String[] srcPath = new String[] {  "EMPTY_SOURCE_URL-0-hdfs://user321:321fake@foo.bar.com:8020/user/user321" };
-    String[] destPath = new String[] { "EMPTY_DEST_URL-0-hdfs://user123:fake123@foo.bar.com:8020/user/user123" };
 
-    jobEntryHadoopCopyFiles.source_filefolder = Arrays.stream( srcPath ).toArray( String[]::new );
-    jobEntryHadoopCopyFiles.destination_filefolder = Arrays.stream( destPath ).toArray( String[]::new );
-    jobEntryHadoopCopyFiles.wildcard = Collections.nCopies( srcPath.length, EMPTY ) .toArray( String[]::new );
+    // SETUP
+
+    when( namedClusterManager.getNamedClusterByName( testNcName, metaStore ) ).thenReturn( namedCluster );
+    String testNewUrl = "testNewUrl"; // NOTE: in a fully resolved URL this can contain user credentials username:password
+    // TODO add check for source resolution with password
+    String resolvedDestUrlTestNewUrl = "EMPTY_DEST_URL-2-" +  testNewUrl;
+    when( namedCluster.processURLsubstitution( testUrl, metaStore, jobEntryHadoopCopyFiles.getVariables() ) )
+      .thenReturn( testNewUrl );
+
+
+    String[] srcPaths = new String[] {
+      "EMPTY_SOURCE_URL-0-${Internal.Entry.Current.Directory}/inputData/",
+      "EMPTY_SOURCE_URL-1-${Internal.Entry.Current.Directory}/inputData/",
+      "EMPTY_SOURCE_URL-2-${Internal.Entry.Current.Directory}/inputData/",
+    };
+    String[] destPaths = new String[] {
+      "EMPTY_DEST_URL-0-${hdfs_url}/user/devuser/output",
+      "EMPTY_DEST_URL-1-hdfs://user123:fake123@foo.bar.com:8020/user/user123",
+      "EMPTY_DEST_URL-2-" + testUrl, // NOTE: at execution this should be resolved and then original value saved to xml
+    };
+
+    String[] expectedExecutionTimeSrcPaths = Arrays.stream( srcPaths ).toArray( String[]::new );
+    String[] expectedExecutionTimeDestPaths = Arrays.stream( destPaths ).toArray( String[]::new );
+    expectedExecutionTimeDestPaths[2] = resolvedDestUrlTestNewUrl; // NOTE: verifying logic for  NamedCluster#processURLsubstitution
+
+    jobEntryHadoopCopyFiles.source_filefolder = Arrays.stream( srcPaths ).toArray( String[]::new );
+    jobEntryHadoopCopyFiles.destination_filefolder = Arrays.stream( destPaths ).toArray( String[]::new );
+    jobEntryHadoopCopyFiles.wildcard = Collections.nCopies( srcPaths.length, EMPTY ) .toArray( String[]::new );
 
     String xml = "<entry>" + jobEntryHadoopCopyFiles.getXML() + "</entry>"; // runs through all the loadURL and saveURL logic
 
     Document xmlDocument = getDocument( xml );
 
-    // add new node
-    setConfigurationNode( xmlDocument, SOURCE_URL + "0", SOURCE_CONFIGURATION_NAME, STATIC_SOURCE_FILE + "0" );
+    // add new nodes, current entry job class does not have variables for xml nodes <destination_configuration_name> and <source_configuration_name>
+    setConfigurationNode( xmlDocument, SOURCE_URL + "0", SOURCE_CONFIGURATION_NAME, LOCAL_SOURCE_FILE + "0" );
+    setConfigurationNode( xmlDocument, DEST_URL + "0", DESTINATION_CONFIGURATION_NAME, STATIC_DEST_FILE + "0" );
 
+    setConfigurationNode( xmlDocument, SOURCE_URL + "1", SOURCE_CONFIGURATION_NAME, LOCAL_SOURCE_FILE + "1" );
+    setConfigurationNode( xmlDocument, DEST_URL + "1", DESTINATION_CONFIGURATION_NAME, STATIC_DEST_FILE + "1" );
 
-    // save back changes
+    setConfigurationNode( xmlDocument, SOURCE_URL + "2", SOURCE_CONFIGURATION_NAME, LOCAL_SOURCE_FILE + "2" );
+    setConfigurationNode( xmlDocument, DEST_URL + "2", DESTINATION_CONFIGURATION_NAME, testNcName );
+
+    // copy back changes
     xml = toString( xmlDocument );
 
-    // TODO verify still correct test logic
-    assertTrue( xml.contains( srcPath[0] ) );
-    assertTrue( xml.contains( destPath[0] ) );
-    JobEntryCopyFiles loadedEntry = new JobEntryCopyFiles();
+    // Sanity check setup xml
+    for ( String srcPath : srcPaths ) {
+      assertTrue( xml.contains( srcPath ) );
+    }
+
+    for ( String destPath : destPaths ) {
+      assertTrue( xml.contains( destPath ) );
+    }
+
+    // TEST this is the actual test function #loadXml
     InputStream is = new ByteArrayInputStream( xml.getBytes() );
-    loadedEntry.loadXML( XMLHandler.getSubNode(
+    jobEntryHadoopCopyFiles.loadXML( XMLHandler.getSubNode(
         XMLHandler.loadXMLFile( is,
           null,
           false,
@@ -283,12 +326,34 @@ public class JobEntryHadoopCopyFilesTest {
       null,
       null,
       null );
-    // NOTE: passwords should not be "scrubbed"
-    assertTrue( loadedEntry.source_filefolder[0].equals( srcPath[0] ) );
-    assertTrue( loadedEntry.destination_filefolder[0].equals( destPath[0] ) );
-    verify( mockNamedClusterEmbedManager, times( ( srcPath.length + destPath.length ) ) ).registerUrl( anyString() ); // might not be mocked correctly
+
+    // VERIFY : EXECUTION TIME URLs - at execution time URL should be resolved
+    for ( int i = 0; i < expectedExecutionTimeSrcPaths.length; ++i ) {
+      assertEquals( expectedExecutionTimeSrcPaths[ i ], jobEntryHadoopCopyFiles.source_filefolder[ i ] );
+    }
+
+    for ( int i = 0; i < expectedExecutionTimeDestPaths.length; ++i ) {
+      assertEquals( expectedExecutionTimeDestPaths[ i ], jobEntryHadoopCopyFiles.destination_filefolder[ i ] );
+    }
+
+    verify( mockNamedClusterEmbedManager, atLeast( ( srcPaths.length + destPaths.length ) ) ).registerUrl( anyString() );
+    verify( namedCluster, atLeast( 1 ) ).processURLsubstitution( eq( testUrl ), any(), any() );
+
+    // VERIFY : DESIGN TIME URLs - when the KJB is saved, the original URL (ie un resolved and with no user credentials present)
+    String xmlPostExecution = jobEntryHadoopCopyFiles.getXML();
+
+    for ( String srcPath : srcPaths ) {
+      assertTrue( xmlPostExecution.contains( srcPath ) );
+    }
+
+    for ( String destPath : destPaths ) {
+      assertTrue( xmlPostExecution.contains( destPath ) );
+    }
+
+    assertFalse( xmlPostExecution.contains( resolvedDestUrlTestNewUrl ) ); // Most important check for PDI-19665
   }
 
+  // TODO move all this code to a separate class
   protected static Document getDocument( String xmlSnippet ) throws ParserConfigurationException, IOException, SAXException {
     DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
     DocumentBuilder builder = builderFactory.newDocumentBuilder();
