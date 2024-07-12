@@ -60,6 +60,7 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
@@ -76,6 +77,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.DESTINATION_FILE_FOLDER;
+import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.SOURCE_CONFIGURATION_NAME;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.SOURCE_FILE_FOLDER;
 
 /**
@@ -245,11 +247,11 @@ public class JobEntryHadoopCopyFilesTest {
 
   @Test
   public void saveLoadWithNamedClusters() throws Exception {
-    String srcPath = "EMPTY_SOURCE_URL-0-hdfs://user321:321fake@foo.bar.com:8020/user/user321";
-    String destPath = "EMPTY_DEST_URL-0-hdfs://user123:fake123@foo.bar.com:8020/user/user123";
+    String[] srcPath = new String[] {  "EMPTY_SOURCE_URL-0-hdfs://user321:321fake@foo.bar.com:8020/user/user321" };
+    String[] destPath = new String[] { "EMPTY_DEST_URL-0-hdfs://user123:fake123@foo.bar.com:8020/user/user123" };
 
-    jobEntryHadoopCopyFiles.source_filefolder = new String[] { srcPath };
-    jobEntryHadoopCopyFiles.destination_filefolder = new String[] { destPath };
+    jobEntryHadoopCopyFiles.source_filefolder = Arrays.stream( srcPath ).toArray( String[]::new );
+    jobEntryHadoopCopyFiles.destination_filefolder = Arrays.stream( destPath ).toArray( String[]::new );
     jobEntryHadoopCopyFiles.wildcard = new String[] { EMPTY };
 
     String xml = "<entry>" + jobEntryHadoopCopyFiles.getXML() + "</entry>"; // runs through all the loadURL and saveURL logic
@@ -257,18 +259,19 @@ public class JobEntryHadoopCopyFilesTest {
     Document xmlDocument = getDocument( xml );
 
     // add new node
-    String exampleSourceConfig0 = "<source_configuration_name>STATIC-SOURCE-FILE-0</source_configuration_name>";
-    addOrUpdateSibling( xmlDocument, "EMPTY_SOURCE_URL-0", exampleSourceConfig0 );
+    addOrUpdateSibling( xmlDocument, "EMPTY_SOURCE_URL-0",
+        createNode( xmlDocument, SOURCE_CONFIGURATION_NAME, "STATIC-SOURCE-FILE-0" )
+    );
 
     // save back changes
     xml = toString( xmlDocument );
 
     // TODO verify still correct test logic
-    assertTrue( xml.contains( srcPath ) );
-    assertTrue( xml.contains( destPath ) );
-    JobEntryCopyFiles loadedentry = new JobEntryCopyFiles();
+    assertTrue( xml.contains( srcPath[0] ) );
+    assertTrue( xml.contains( destPath[0] ) );
+    JobEntryCopyFiles loadedEntry = new JobEntryCopyFiles();
     InputStream is = new ByteArrayInputStream( xml.getBytes() );
-    loadedentry.loadXML( XMLHandler.getSubNode(
+    loadedEntry.loadXML( XMLHandler.getSubNode(
         XMLHandler.loadXMLFile( is,
           null,
           false,
@@ -279,8 +282,8 @@ public class JobEntryHadoopCopyFilesTest {
       null,
       null );
     // NOTE: passwords should not be "scrubbed"
-    assertTrue( loadedentry.source_filefolder[0].equals( srcPath ) );
-    assertTrue( loadedentry.destination_filefolder[0].equals( destPath ) );
+    assertTrue( loadedEntry.source_filefolder[0].equals( srcPath[0] ) );
+    assertTrue( loadedEntry.destination_filefolder[0].equals( destPath[0] ) );
     verify( mockNamedClusterEmbedManager, times( 2 ) ).registerUrl( anyString() ); // might not be mocked correctly
   }
 
@@ -364,8 +367,7 @@ public class JobEntryHadoopCopyFilesTest {
     return importNode( ownerDocument, unImportedNode );
   }
 
-  protected static Node createNode( Document ownerDocument, String tagName, String text ) throws ParserConfigurationException, IOException,
-    SAXException {
+  protected static Node createNode( Document ownerDocument, String tagName, String text ) {
     Node newNode = ownerDocument.createElement( tagName );
     newNode.setTextContent( text );
     return newNode;
@@ -378,21 +380,6 @@ public class JobEntryHadoopCopyFilesTest {
      * org.w3c.dom.DOMException: WRONG_DOCUMENT_ERR: A node is used in a different document than the one that created it
      */
     Node importedNode = ownerDocument.importNode( newNode, true );
-    return importedNode;
-  }
-
-  protected static Node insertAfterPOC( Node node, Node child ) { // these nodes are siblings
-    /**
-     * have to do this import since we don't have access to original Document builder
-     * otherwise you'll get:
-     * org.w3c.dom.DOMException: WRONG_DOCUMENT_ERR: A node is used in a different document than the one that created it
-     */
-    Document ownerDocument = node.getOwnerDocument();
-    Node importedNode = ownerDocument.importNode( child, true );
-    Node next = node.getParentNode().getChildNodes().item( 0 ); // TODO get actual index
-    node.insertBefore( importedNode, next );
-    //    parent.appendChild( importedNode );
-
     return importedNode;
   }
 }
