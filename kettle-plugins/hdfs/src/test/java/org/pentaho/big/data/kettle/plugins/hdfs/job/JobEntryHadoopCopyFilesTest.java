@@ -313,28 +313,37 @@ public class JobEntryHadoopCopyFilesTest {
   }
 
   protected static Node addOrUpdateSibling( Document document, String fileFolderNodeSearchStartsWith, String xmlNewNode )
-    throws XPathExpressionException, ParserConfigurationException, IOException, SAXException {
+    throws ParserConfigurationException, IOException, SAXException, XPathExpressionException {
+    return addOrUpdateSibling( document, fileFolderNodeSearchStartsWith, createNode( document, xmlNewNode ) );
+  }
+
+  protected static Node addOrUpdateSibling( Document document, String fileFolderNodeSearchStartsWith, Node newNode )
+    throws XPathExpressionException  {
     NodeList fileFolders = getFileFolderNodeList( document );
     Node matchedNode = toStream( fileFolders )
-        .filter( n -> n.getTextContent().startsWith( fileFolderNodeSearchStartsWith ) )
-        .findFirst()
-        .orElse( null );
+      .filter( n -> n.getTextContent().startsWith( fileFolderNodeSearchStartsWith ) )
+      .findFirst()
+      .orElse( null );
 
+    return addOrUpdateSibling( matchedNode, newNode );
+  }
+
+
+  protected static Node addOrUpdateSibling( Node matchedNode, Node newNode ) {
     if ( matchedNode == null ) {
       return null;
     }
-
-    Node newNode = createNode( document, xmlNewNode );
     Node parentNode = matchedNode.getParentNode();
     Node oldChild = toStream( parentNode.getChildNodes() )
-        .filter(  n -> Objects.equals( n.getNodeName(), newNode.getNodeName() ) )
-        .findFirst()
-        .orElse( null );
+      .filter(  n -> Objects.equals( n.getNodeName(), newNode.getNodeName() ) )
+      .findFirst()
+      .orElse( null );
 
     return (  oldChild != null )
       ? matchedNode.getParentNode().replaceChild( newNode, oldChild )
       : matchedNode.getParentNode().appendChild( newNode );
   }
+
 
   protected static Stream<Node> toStream( NodeList nodeList ) {
     return IntStream.range( 0, nodeList.getLength() ) .mapToObj( nodeList::item );
@@ -353,6 +362,13 @@ public class JobEntryHadoopCopyFilesTest {
     SAXException {
     Node unImportedNode = createNode( xmlString );
     return importNode( ownerDocument, unImportedNode );
+  }
+
+  protected static Node createNode( Document ownerDocument, String tagName, String text ) throws ParserConfigurationException, IOException,
+    SAXException {
+    Node newNode = ownerDocument.createElement( tagName );
+    newNode.setTextContent( text );
+    return newNode;
   }
 
   protected static Node importNode( Document ownerDocument, Node newNode ) {
