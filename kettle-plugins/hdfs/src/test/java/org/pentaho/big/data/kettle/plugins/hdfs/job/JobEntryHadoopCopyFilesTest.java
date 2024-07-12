@@ -61,6 +61,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
@@ -79,6 +80,8 @@ import static org.mockito.Mockito.when;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.DESTINATION_FILE_FOLDER;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.SOURCE_CONFIGURATION_NAME;
 import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.SOURCE_FILE_FOLDER;
+import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.SOURCE_URL;
+import static org.pentaho.di.job.entries.copyfiles.JobEntryCopyFiles.STATIC_SOURCE_FILE;
 
 /**
  * Created by bryan on 11/23/15.
@@ -194,7 +197,7 @@ public class JobEntryHadoopCopyFilesTest {
     String testNewUrl = HadoopSpoonPlugin.HDFS_SCHEME + "://" + "testNewUrl";
     when( namedCluster.processURLsubstitution( testUrl, metaStore, jobEntryHadoopCopyFiles.getVariables() ) )
       .thenReturn( testNewUrl );
-    String prefixUrlSource = JobEntryCopyFiles.SOURCE_URL + 8 + "-";
+    String prefixUrlSource = SOURCE_URL + 8 + "-";
     String testPrefixSourceUrl = prefixUrlSource + testUrl;
     String expectedPrefixSourceLoadUrl = prefixUrlSource + testNewUrl;
     assertEquals( expectedPrefixSourceLoadUrl, jobEntryHadoopCopyFiles.loadURL( testPrefixSourceUrl, testNcName, metaStore, mappings ) );
@@ -252,16 +255,15 @@ public class JobEntryHadoopCopyFilesTest {
 
     jobEntryHadoopCopyFiles.source_filefolder = Arrays.stream( srcPath ).toArray( String[]::new );
     jobEntryHadoopCopyFiles.destination_filefolder = Arrays.stream( destPath ).toArray( String[]::new );
-    jobEntryHadoopCopyFiles.wildcard = new String[] { EMPTY };
+    jobEntryHadoopCopyFiles.wildcard = Collections.nCopies( srcPath.length, EMPTY ) .toArray( String[]::new );
 
     String xml = "<entry>" + jobEntryHadoopCopyFiles.getXML() + "</entry>"; // runs through all the loadURL and saveURL logic
 
     Document xmlDocument = getDocument( xml );
 
     // add new node
-    addOrUpdateSibling( xmlDocument, "EMPTY_SOURCE_URL-0",
-        createNode( xmlDocument, SOURCE_CONFIGURATION_NAME, "STATIC-SOURCE-FILE-0" )
-    );
+    setConfigurationNode( xmlDocument, SOURCE_URL + "0", SOURCE_CONFIGURATION_NAME, STATIC_SOURCE_FILE + "0" );
+
 
     // save back changes
     xml = toString( xmlDocument );
@@ -284,7 +286,7 @@ public class JobEntryHadoopCopyFilesTest {
     // NOTE: passwords should not be "scrubbed"
     assertTrue( loadedEntry.source_filefolder[0].equals( srcPath[0] ) );
     assertTrue( loadedEntry.destination_filefolder[0].equals( destPath[0] ) );
-    verify( mockNamedClusterEmbedManager, times( 2 ) ).registerUrl( anyString() ); // might not be mocked correctly
+    verify( mockNamedClusterEmbedManager, times( ( srcPath.length + destPath.length ) ) ).registerUrl( anyString() ); // might not be mocked correctly
   }
 
   protected static Document getDocument( String xmlSnippet ) throws ParserConfigurationException, IOException, SAXException {
@@ -313,6 +315,16 @@ public class JobEntryHadoopCopyFilesTest {
     XPath xPath = XPathFactory.newInstance().newXPath();
     NodeList nodeList = (NodeList) xPath.compile( expression ).evaluate( document, XPathConstants.NODESET );
     return nodeList;
+  }
+
+  protected static void setConfigurationNode( Document document, String fileFolderNodeSearchStartsWith,
+                                          String configurationTagName, String configurationTextContent )
+    throws XPathExpressionException {
+
+    addOrUpdateSibling( document, fileFolderNodeSearchStartsWith,
+      createNode( document, configurationTagName, configurationTextContent )
+    );
+
   }
 
   protected static Node addOrUpdateSibling( Document document, String fileFolderNodeSearchStartsWith, String xmlNewNode )
@@ -367,9 +379,9 @@ public class JobEntryHadoopCopyFilesTest {
     return importNode( ownerDocument, unImportedNode );
   }
 
-  protected static Node createNode( Document ownerDocument, String tagName, String text ) {
+  protected static Node createNode( Document ownerDocument, String tagName, String textContent ) {
     Node newNode = ownerDocument.createElement( tagName );
-    newNode.setTextContent( text );
+    newNode.setTextContent( textContent );
     return newNode;
   }
 
