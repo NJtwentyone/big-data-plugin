@@ -24,6 +24,7 @@ package org.pentaho.big.data.kettle.plugins.hdfs.job;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.pentaho.di.core.database.DatabaseConnectionPoolParameter;
 import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.xml.XMLHandler;
 import org.pentaho.di.job.Job;
@@ -37,9 +38,28 @@ import org.pentaho.metastore.api.IMetaStore;
 import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
 import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
+import javax.print.Doc;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -229,6 +249,16 @@ public class JobEntryHadoopCopyFilesTest {
     jobEntryHadoopCopyFiles.wildcard = new String[] { EMPTY };
 
     String xml = "<entry>" + jobEntryHadoopCopyFiles.getXML() + "</entry>"; // runs through all the loadURL and saveURL logic
+
+    Document xmlDocument = getDocument( xml );
+    String toStringXmlDocument = toString( xmlDocument );
+
+    XPath xPath = XPathFactory.newInstance().newXPath();
+    String expression = "/entry/fields/field/source_filefolder";
+    String source_file_folder_text="EMPTY_SOURCE_URL-0-hdfs://user321:321fake@foo.bar.com:8020/user/user321";
+    NodeList nodeList = (NodeList) xPath.compile(expression).evaluate(xmlDocument, XPathConstants.NODESET);
+    NodeList nodeList1 = getFileFolderNodeList( xmlDocument );
+
     assertTrue( xml.contains( srcPath ) );
     assertTrue( xml.contains( destPath ) );
     JobEntryCopyFiles loadedentry = new JobEntryCopyFiles();
@@ -251,5 +281,32 @@ public class JobEntryHadoopCopyFilesTest {
 
   protected void addNodeAfter( Document xmlDocument, String xmlNodeString ) {
     // TODO
+  }
+
+  protected static Document getDocument( String xmlSnippet ) throws ParserConfigurationException, IOException, SAXException {
+    DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
+    DocumentBuilder builder = builderFactory.newDocumentBuilder();
+    String XML_HEADER = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+    String xmlString =/* XML_HEADER +*/ xmlSnippet;
+    Document xmlDocument = builder.parse( new InputSource( new StringReader( xmlString ) ) );
+    return xmlDocument;
+  }
+
+  public static String toString( Document document ) throws TransformerException {
+    TransformerFactory transformerFactory = TransformerFactory.newInstance();
+    Transformer transformer = transformerFactory.newTransformer();
+    StringWriter stringWriter = new StringWriter();
+    transformer.transform( new DOMSource( document ), new StreamResult( stringWriter ) );
+    return stringWriter.toString();
+  }
+
+  protected static NodeList getFileFolderNodeList( Document document ) throws XPathExpressionException {
+    String sourceFF = "/entry/fields/field/source_filefolder";
+    String destinationFF = "/entry/fields/field/destination_filefolder";
+//    String expression = "/entry/fields/field/source_filefolder";
+    String expression = sourceFF + " | " + destinationFF;
+    XPath xPath = XPathFactory.newInstance().newXPath();
+    NodeList nodeList = (NodeList) xPath.compile( expression ).evaluate( document, XPathConstants.NODESET );
+    return nodeList;
   }
 }
