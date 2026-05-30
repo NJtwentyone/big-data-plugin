@@ -14,6 +14,7 @@ package org.pentaho.big.data.services.bootstrap;
 
 import org.apache.logging.log4j.Logger;
 import org.pentaho.di.core.exception.KettlePluginException;
+import org.pentaho.di.core.plugins.ParentFirst;
 import org.pentaho.di.core.service.PluginServiceLoader;
 import org.pentaho.di.core.annotations.KettleLifecyclePlugin;
 import org.pentaho.di.core.lifecycle.KettleLifecycleListener;
@@ -23,6 +24,7 @@ import java.util.Collection;
 
 
 @KettleLifecyclePlugin( id = "BigDataPlugin", name = "Big Data Plugin" )
+@ParentFirst( patterns = { "org.apache.commons.log.*", "org.apache.logging.log4j.*", "org.slf4j.*" } )
 public class BigDataPluginLifecycleListener implements KettleLifecycleListener {
 
   protected static final Logger logger = BigDataLogConfig.getBigDataLogger(BigDataPluginLifecycleListener.class);
